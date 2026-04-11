@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BookVault — Books Analysis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── RESET & VARIABLES ─────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --cream:    #faf6f0;
+      --parchment:#f2ead8;
+      --warm:     #e8dcc8;
+      --brown:    #8b5e3c;
+      --espresso: #3d1f0f;
+      --ink:      #1a0f0a;
+      --gold:     #c9963a;
+      --gold-lt:  #e8b84b;
+      --rose:     #c4736a;
+      --sage:     #7a9e7e;
+      --dust:     #a89880;
+      --shadow:   rgba(61,31,15,0.15);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE TEXTURE OVERLAY ─────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    /* ── HERO ──────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      background: var(--espresso);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 60px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 80%, rgba(201,150,58,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 80% 20%, rgba(196,115,106,0.12) 0%, transparent 60%);
+    }
+
+    .hero-eyebrow {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 24px;
+      opacity: 0;
+      animation: fadeUp 0.8s ease forwards 0.2s;
+    }
+
+    .hero-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(3.5rem, 10vw, 8rem);
+      font-weight: 900;
+      color: var(--cream);
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      opacity: 0;
+      animation: fadeUp 0.9s ease forwards 0.4s;
+    }
+
+    .hero-title em {
+      font-style: italic;
+      color: var(--gold);
+    }
+
+    .hero-subtitle {
+      font-family: 'DM Serif Display', serif;
+      font-style: italic;
+      font-size: clamp(1rem, 2.5vw, 1.4rem);
+      color: var(--dust);
+      margin-bottom: 50px;
+      opacity: 0;
+      animation: fadeUp 0.9s ease forwards 0.6s;
+    }
+
+    /* Decorative line */
+    .hero-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 50px;
+      opacity: 0;
+      animation: fadeUp 0.9s ease forwards 0.7s;
+    }
+    .hero-divider span { width: 60px; height: 1px; background: var(--gold); opacity: 0.4; }
+    .hero-divider i { color: var(--gold); font-size: 1rem; }
+
+    /* Stats in hero */
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+      opacity: 0;
+      animation: fadeUp 0.9s ease forwards 0.9s;
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--gold);
+      display: block;
+    }
+    .hero-stat-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--dust);
+    }
+
+    /* Scroll cue */
+    .scroll-cue {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--dust);
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      animation: bounce 2s ease infinite;
+    }
+    .scroll-cue::after {
+      content: '';
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to bottom, var(--gold), transparent);
+    }
+
+    /* ── SECTION WRAPPERS ──────────────────────────── */
+    .section {
+      padding: 100px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      color: var(--espresso);
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    .section-title em { font-style: italic; color: var(--brown); }
+
+    .section-desc {
+      color: var(--dust);
+      font-size: 1rem;
+      max-width: 500px;
+      line-height: 1.7;
+      margin-bottom: 60px;
+    }
+
+    /* ── STAT CARDS ROW ────────────────────────────── */
+    .stats-band {
+      background: var(--espresso);
+      padding: 60px 40px;
+    }
+    .stats-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 2px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.04);
+      padding: 40px 30px;
+      text-align: center;
+      border: 1px solid rgba(201,150,58,0.15);
+      transition: background 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(to right, transparent, var(--gold), transparent);
+      transform: scaleX(0);
+      transition: transform 0.4s ease;
+    }
+    .stat-card:hover::before { transform: scaleX(1); }
+    .stat-card:hover { background: rgba(201,150,58,0.06); }
+
+    .stat-number {
+      font-family: 'Playfair Display', serif;
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--gold);
+      display: block;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dust);
+    }
+
+    /* ── CHARTS ────────────────────────────────────── */
+    .charts-bg {
+      background: var(--parchment);
+      padding: 100px 40px;
+    }
+    .charts-inner { max-width: 1200px; margin: 0 auto; }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+    }
+
+    .chart-item {
+      background: var(--cream);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px var(--shadow);
+      transition: transform 0.35s ease, box-shadow 0.35s ease;
+      position: relative;
+    }
+    .chart-item:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 40px var(--shadow);
+    }
+    .chart-item:nth-child(1) { grid-column: span 7; }
+    .chart-item:nth-child(2) { grid-column: span 5; }
+    .chart-item:nth-child(3) { grid-column: span 5; }
+    .chart-item:nth-child(4) { grid-column: span 7; }
+    .chart-item:nth-child(5) { grid-column: span 12; }
+
+    .chart-item img {
+      width: 100%;
+      display: block;
+      transition: opacity 0.3s;
+    }
+    .chart-caption {
+      padding: 16px 20px;
+      border-top: 1px solid var(--warm);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .chart-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--warm);
+      line-height: 1;
+    }
+    .chart-name {
+      font-size: 0.82rem;
+      color: var(--brown);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    @media (max-width: 768px) {
+      .chart-item:nth-child(n) { grid-column: span 12; }
+    }
+
+    /* ── BOOKS TABLE ───────────────────────────────── */
+    .table-section { background: var(--cream); padding: 100px 40px; }
+    .table-inner { max-width: 1200px; margin: 0 auto; }
+
+    /* Filter pills */
+    .filter-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+    .pill {
+      padding: 8px 22px;
+      border-radius: 100px;
+      border: 1.5px solid var(--warm);
+      background: transparent;
+      color: var(--brown);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      letter-spacing: 0.03em;
+    }
+    .pill:hover { border-color: var(--gold); color: var(--gold); }
+    .pill.active {
+      background: var(--espresso);
+      border-color: var(--espresso);
+      color: var(--gold);
+    }
+
+    /* Search */
+    .search-wrap {
+      position: relative;
+      margin-bottom: 30px;
+      max-width: 360px;
+    }
+    .search-wrap input {
+      width: 100%;
+      padding: 12px 20px 12px 44px;
+      border: 1.5px solid var(--warm);
+      border-radius: 100px;
+      background: var(--parchment);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.25s;
+    }
+    .search-wrap input:focus { border-color: var(--gold); }
+    .search-wrap input::placeholder { color: var(--dust); }
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--dust);
+      font-size: 1rem;
+    }
+
+    /* Table */
+    .tbl-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 6px;
+    }
+    thead tr th {
+      font-size: 0.68rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--dust);
+      padding: 0 20px 12px;
+      text-align: left;
+      font-weight: 500;
+      border-bottom: 1px solid var(--warm);
+    }
+    tbody tr {
+      background: var(--parchment);
+      transition: all 0.2s ease;
+      cursor: default;
+    }
+    tbody tr:hover {
+      background: var(--warm);
+      transform: scale(1.002);
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+    tbody td {
+      padding: 16px 20px;
+      font-size: 0.88rem;
+      color: var(--espresso);
+      vertical-align: middle;
+    }
+    tbody td:first-child { border-radius: 8px 0 0 8px; }
+    tbody td:last-child  { border-radius: 0 8px 8px 0; }
+
+    .book-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 0.95rem;
+      color: var(--espresso);
+      display: block;
+    }
+    .book-author {
+      font-size: 0.78rem;
+      color: var(--dust);
+      margin-top: 2px;
+    }
+
+    .stars { color: var(--gold); font-size: 0.8rem; letter-spacing: 1px; }
+    .rating-num { font-weight: 600; font-size: 0.85rem; color: var(--espresso); }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+    }
+    .badge-fiction    { background: rgba(139,94,60,0.12); color: var(--brown); }
+    .badge-nonfiction { background: rgba(122,158,126,0.15); color: var(--sage); }
+
+    .year-tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: var(--warm);
+      color: var(--brown);
+    }
+    .year-tag.new {
+      background: rgba(201,150,58,0.18);
+      color: var(--gold);
+    }
+
+    /* row number */
+    .row-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      color: var(--warm);
+      font-weight: 700;
+    }
+
+    /* ── TOP BOOKS MARQUEE ─────────────────────────── */
+    .marquee-band {
+      background: var(--espresso);
+      padding: 20px 0;
+      overflow: hidden;
+      border-top: 1px solid rgba(201,150,58,0.2);
+      border-bottom: 1px solid rgba(201,150,58,0.2);
+    }
+    .marquee-track {
+      display: flex;
+      white-space: nowrap;
+      animation: marquee 30s linear infinite;
+    }
+    .marquee-track:hover { animation-play-state: paused; }
+    .marquee-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 32px;
+      font-family: 'DM Serif Display', serif;
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--cream);
+      opacity: 0.7;
+    }
+    .marquee-item .dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--gold);
+      flex-shrink: 0;
+    }
+
+    /* ── FOOTER ────────────────────────────────────── */
+    footer {
+      background: var(--ink);
+      padding: 60px 40px;
+      text-align: center;
+    }
+    .footer-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 900;
+      font-style: italic;
+      color: var(--gold);
+      margin-bottom: 16px;
+    }
+    .footer-tagline {
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dust);
+      margin-bottom: 30px;
+    }
+    .footer-line { width: 60px; height: 1px; background: var(--gold); opacity: 0.3; margin: 0 auto 30px; }
+    .footer-credits {
+      font-size: 0.78rem;
+      color: rgba(168,152,128,0.5);
+      line-height: 2;
+    }
+
+    /* ── ANIMATIONS ────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(8px); }
+    }
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HERO ══════════════════════════════════════════ -->
+<section class="hero">
+  <p class="hero-eyebrow">Amazon Bestsellers · 2015 – 2025</p>
+  <h1 class="hero-title">Book<em>Vault</em></h1>
+  <p class="hero-subtitle">A data analysis of books that defined a decade</p>
+
+  <div class="hero-divider">
+    <span></span>
+    <i>✦</i>
+    <span></span>
+  </div>
+
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <span class="hero-stat-num">38</span>
+      <span class="hero-stat-label">Books Analyzed</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num">4.69</span>
+      <span class="hero-stat-label">Avg Rating</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num">11</span>
+      <span class="hero-stat-label">2024–25 Titles</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num">Rs 500</span>
+      <span class="hero-stat-label">Avg Price</span>
+    </div>
+  </div>
+
+  <div class="scroll-cue">Explore</div>
+</section>
+
+<!-- ══ MARQUEE ════════════════════════════════════════ -->
+<div class="marquee-band">
+  <div class="marquee-track" id="marqueeTrack"></div>
+</div>
+
+<!-- ══ STAT CARDS ════════════════════════════════════ -->
+<div class="stats-band">
+  <div class="stats-inner">
+    <div class="stat-card reveal">
+      <span class="stat-number">4.9</span>
+      <span class="stat-label">Highest Rating</span>
+    </div>
+    <div class="stat-card reveal">
+      <span class="stat-number">500K</span>
+      <span class="stat-label">Most Reviewed</span>
+    </div>
+    <div class="stat-card reveal">
+      <span class="stat-number">25</span>
+      <span class="stat-label">Fiction Titles</span>
+    </div>
+    <div class="stat-card reveal">
+      <span class="stat-number">13</span>
+      <span class="stat-label">Non-Fiction</span>
+    </div>
+    <div class="stat-card reveal">
+      <span class="stat-number">4.70</span>
+      <span class="stat-label">Fiction Avg Rating</span>
+    </div>
+    <div class="stat-card reveal">
+      <span class="stat-number">4.68</span>
+      <span class="stat-label">Non-Fiction Avg</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CHARTS ════════════════════════════════════════ -->
+<div class="charts-bg">
+  <div class="charts-inner">
+    <div class="section" style="padding: 0 0 60px;">
+      <p class="section-label reveal">Visual Analysis</p>
+      <h2 class="section-title reveal">The data, <em>illustrated</em></h2>
+      <p class="section-desc reveal">Five charts revealing patterns across genres, years, ratings and reader engagement.</p>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-item reveal">
+        <img src="charts\3_per_year.png" alt="Books Per Year"/>
+        <div class="chart-caption">
+          <span class="chart-num">01</span>
+          <span class="chart-name">Bestsellers Per Year</span>
+        </div>
+      </div>
+      <div class="chart-item reveal">
+        <img src="charts/1_genre.png" alt="Genre Count"/>
+        <div class="chart-caption">
+          <span class="chart-num">02</span>
+          <span class="chart-name">Fiction vs Non Fiction</span>
+        </div>
+      </div>
+      <div class="chart-item reveal">
+        <img src="charts/2_ratings.png" alt="Ratings Distribution"/>
+        <div class="chart-caption">
+          <span class="chart-num">03</span>
+          <span class="chart-name">Ratings Distribution</span>
+        </div>
+      </div>
+      <div class="chart-item reveal">
+        <img src="charts/4_top5.png" alt="Top 5 Reviewed"/>
+        <div class="chart-caption">
+          <span class="chart-num">04</span>
+          <span class="chart-name">Top 5 Most Reviewed</span>
+        </div>
+      </div>
+      <div class="chart-item reveal">
+        <img src="charts/5_trend.png" alt="Rating Trend"/>
+        <div class="chart-caption">
+          <span class="chart-num">05</span>
+          <span class="chart-name">Average Rating Trend by Year</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TABLE ══════════════════════════════════════════ -->
+<div class="table-section">
+  <div class="table-inner">
+    <div style="margin-bottom: 50px;">
+      <p class="section-label reveal">Complete Collection</p>
+      <h2 class="section-title reveal">Every book, <em>every detail</em></h2>
+    </div>
+
+    <div class="filter-row reveal">
+      <button class="pill active" onclick="filterTable('all', this)">All Books</button>
+      <button class="pill" onclick="filterTable('Fiction', this)">Fiction</button>
+      <button class="pill" onclick="filterTable('Non Fiction', this)">Non Fiction</button>
+      <button class="pill" onclick="filterTable('2024', this)">2024</button>
+      <button class="pill" onclick="filterTable('2025', this)">2025</button>
+      <button class="pill" onclick="filterTable('top', this)">⭐ Top Rated</button>
+    </div>
+
+    <div class="search-wrap reveal">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search books or authors…" oninput="searchTable()"/>
+    </div>
+
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Book</th>
+            <th>Rating</th>
+            <th>Reviews</th>
+            <th>Price</th>
+            <th>Year</th>
+            <th>Genre</th>
+          </tr>
+        </thead>
+        <tbody id="bookTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FOOTER ════════════════════════════════════════ -->
+<footer>
+  <div class="footer-logo">BookVault</div>
+  <p class="footer-tagline">A decade of reading, analyzed</p>
+  <div class="footer-line"></div>
+  <p class="footer-credits">
+    Built with Python · Pandas · Matplotlib<br/>
+    Data sourced from Amazon Bestsellers 2015–2025
+  </p>
+</footer>
+
+<script>
+/* ── DATA ─────────────────────────────────────────── */
+const books = [
+  ["The Silent Patient","Alex Michaelides",4.6,150000,12,2019,"Fiction"],
+  ["Where the Crawdads Sing","Delia Owens",4.8,200000,10,2020,"Fiction"],
+  ["Becoming","Michelle Obama",4.9,250000,15,2018,"Non Fiction"],
+  ["Educated","Tara Westover",4.7,180000,13,2019,"Non Fiction"],
+  ["Atomic Habits","James Clear",4.8,300000,16,2020,"Non Fiction"],
+  ["The Alchemist","Paulo Coelho",4.7,220000,9,2017,"Fiction"],
+  ["The Subtle Art of Not Giving a F*ck","Mark Manson",4.6,270000,14,2018,"Non Fiction"],
+  ["It Ends with Us","Colleen Hoover",4.8,210000,11,2021,"Fiction"],
+  ["Verity","Colleen Hoover",4.7,190000,10,2022,"Fiction"],
+  ["The 5 AM Club","Robin Sharma",4.5,120000,13,2019,"Non Fiction"],
+  ["Rich Dad Poor Dad","Robert Kiyosaki",4.7,350000,8,2016,"Non Fiction"],
+  ["Think and Grow Rich","Napoleon Hill",4.6,300000,7,2015,"Non Fiction"],
+  ["The Power of Habit","Charles Duhigg",4.7,140000,12,2018,"Non Fiction"],
+  ["Harry Potter and the Sorcerers Stone","J.K. Rowling",4.9,500000,20,2015,"Fiction"],
+  ["The Hunger Games","Suzanne Collins",4.7,400000,18,2016,"Fiction"],
+  ["The Women","Kristin Hannah",4.8,320000,17,2024,"Fiction"],
+  ["James","Percival Everett",4.7,210000,16,2024,"Fiction"],
+  ["Nuclear War","Annie Jacobsen",4.6,180000,18,2024,"Non Fiction"],
+  ["The God of the Woods","Liz Moore",4.7,150000,15,2024,"Fiction"],
+  ["Martyr!","Kaveh Akbar",4.5,90000,14,2024,"Fiction"],
+  ["The Boys of Riverside","Thomas Fuller",4.8,110000,19,2024,"Non Fiction"],
+  ["The Small and the Mighty","Sharon McMahon",4.7,130000,17,2024,"Non Fiction"],
+  ["Revenge of the Tipping Point","Malcolm Gladwell",4.6,160000,20,2024,"Non Fiction"],
+  ["There Are Rivers in the Sky","Elif Shafak",4.6,95000,15,2024,"Fiction"],
+  ["Iron Flame","Rebecca Yarros",4.8,280000,16,2024,"Fiction"],
+  ["Fourth Wing","Rebecca Yarros",4.8,350000,14,2023,"Fiction"],
+  ["The Boyfriend","Freida McFadden",4.7,200000,13,2024,"Fiction"],
+  ["Buckeye","Patrick Ryan",4.8,85000,22,2025,"Fiction"],
+  ["Wild Dark Shore","Charlotte McConaghy",4.7,70000,18,2025,"Fiction"],
+  ["Atmosphere","Taylor Jenkins Reid",4.8,120000,20,2025,"Fiction"],
+  ["Katabasis","R.F. Kuang",4.7,95000,17,2025,"Fiction"],
+  ["King of Ashes","S.A. Cosby",4.6,80000,16,2025,"Fiction"],
+  ["The Loneliness of Sonia and Sunny","Kiran Desai",4.6,65000,15,2025,"Fiction"],
+  ["Cursed Daughters","Oyinkan Braithwaite",4.5,60000,14,2025,"Fiction"],
+  ["Replaceable You","Mary Roach",4.7,75000,19,2025,"Non Fiction"],
+  ["No More Tears","Harris Gardiner",4.6,55000,18,2025,"Non Fiction"],
+  ["The Intruder","Freida McFadden",4.7,90000,15,2025,"Fiction"],
+  ["Dead Money","Jakob Kerr",4.5,50000,16,2025,"Fiction"]
+];
+
+let currentFilter = 'all';
+let currentSearch = '';
+
+/* ── RENDER TABLE ─────────────────────────────────── */
+function renderTable(data) {
+  const tbody = document.getElementById('bookTable');
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--dust);font-style:italic;">No books found</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map((b, i) => {
+    const stars    = '★'.repeat(Math.floor(b[2])) + (b[2] % 1 >= 0.5 ? '½' : '') ;
+    const gClass   = b[6] === 'Fiction' ? 'badge-fiction' : 'badge-nonfiction';
+    const isNew    = b[5] >= 2024;
+    return `
+    <tr>
+      <td><span class="row-num">${String(i+1).padStart(2,'0')}</span></td>
+      <td>
+        <span class="book-name">${b[0]}</span>
+        <span class="book-author">${b[1]}</span>
+      </td>
+      <td>
+        <div class="stars">${stars}</div>
+        <span class="rating-num">${b[2]}</span>
+      </td>
+      <td>${b[3].toLocaleString()}</td>
+      <td>$${b[4]}</td>
+      <td><span class="year-tag ${isNew ? 'new' : ''}">${b[5]}</span></td>
+      <td><span class="badge ${gClass}">${b[6]}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── FILTER ───────────────────────────────────────── */
+function filterTable(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function searchTable() {
+  currentSearch = document.getElementById('searchInput').value.toLowerCase();
+  applyFilters();
+}
+
+function applyFilters() {
+  let data = [...books];
+  if (currentFilter === 'Fiction')     data = data.filter(b => b[6] === 'Fiction');
+  if (currentFilter === 'Non Fiction') data = data.filter(b => b[6] === 'Non Fiction');
+  if (currentFilter === '2024')        data = data.filter(b => b[5] === 2024);
+  if (currentFilter === '2025')        data = data.filter(b => b[5] === 2025);
+  if (currentFilter === 'top')         data = data.filter(b => b[2] >= 4.8);
+  if (currentSearch) {
+    data = data.filter(b =>
+      b[0].toLowerCase().includes(currentSearch) ||
+      b[1].toLowerCase().includes(currentSearch)
+    );
+  }
+  renderTable(data);
+}
+
+/* ── MARQUEE ──────────────────────────────────────── */
+function buildMarquee() {
+  const track = document.getElementById('marqueeTrack');
+  const items = [...books, ...books].map(b =>
+    `<span class="marquee-item"><span class="dot"></span>${b[0]} — ${b[1]}</span>`
+  ).join('');
+  track.innerHTML = items;
+}
+
+/* ── SCROLL REVEAL ────────────────────────────────── */
+function initReveal() {
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 80);
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+}
+
+/* ── INIT ─────────────────────────────────────────── */
+renderTable(books);
+buildMarquee();
+initReveal();
+</script>
+</body>
+</html>
