@@ -545,7 +545,7 @@
 <section class="hero">
   <p class="hero-eyebrow">Amazon Bestsellers · 2015 – 2025</p>
   <h1 class="hero-title">Book<em>Vault</em></h1>
-  <p class="hero-subtitle">A data analysis of books that defined a decade</p>
+  <p class="hero-subtitle">A data analysis of books</p>
 
   <div class="hero-divider">
     <span></span>
@@ -610,55 +610,6 @@
   </div>
 </div>
 
-<!-- ══ CHARTS ════════════════════════════════════════ -->
-<div class="charts-bg">
-  <div class="charts-inner">
-    <div class="section" style="padding: 0 0 60px;">
-      <p class="section-label reveal">Visual Analysis</p>
-      <h2 class="section-title reveal">The data, <em>illustrated</em></h2>
-      <p class="section-desc reveal">Five charts revealing patterns across genres, years, ratings and reader engagement.</p>
-    </div>
-
-    <div class="charts-grid">
-      <div class="chart-item reveal">
-        <img src="charts\3_per_year.png" alt="Books Per Year"/>
-        <div class="chart-caption">
-          <span class="chart-num">01</span>
-          <span class="chart-name">Bestsellers Per Year</span>
-        </div>
-      </div>
-      <div class="chart-item reveal">
-        <img src="charts/1_genre.png" alt="Genre Count"/>
-        <div class="chart-caption">
-          <span class="chart-num">02</span>
-          <span class="chart-name">Fiction vs Non Fiction</span>
-        </div>
-      </div>
-      <div class="chart-item reveal">
-        <img src="charts/2_ratings.png" alt="Ratings Distribution"/>
-        <div class="chart-caption">
-          <span class="chart-num">03</span>
-          <span class="chart-name">Ratings Distribution</span>
-        </div>
-      </div>
-      <div class="chart-item reveal">
-        <img src="charts/4_top5.png" alt="Top 5 Reviewed"/>
-        <div class="chart-caption">
-          <span class="chart-num">04</span>
-          <span class="chart-name">Top 5 Most Reviewed</span>
-        </div>
-      </div>
-      <div class="chart-item reveal">
-        <img src="charts/5_trend.png" alt="Rating Trend"/>
-        <div class="chart-caption">
-          <span class="chart-num">05</span>
-          <span class="chart-name">Average Rating Trend by Year</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ══ TABLE ══════════════════════════════════════════ -->
 <div class="table-section">
   <div class="table-inner">
@@ -706,13 +657,14 @@
   <p class="footer-tagline">A decade of reading, analyzed</p>
   <div class="footer-line"></div>
   <p class="footer-credits">
-    Built with Python · Pandas · Matplotlib<br/>
+    Built with C++ · SQL · HTML &amp; CSS<br/>
     Data sourced from Amazon Bestsellers 2015–2025
   </p>
 </footer>
 
 <script>
 /* ── DATA ─────────────────────────────────────────── */
+/* AUTO-GENERATED-START: do not edit by hand, this block is
 const books = [
   ["The Silent Patient","Alex Michaelides",4.6,150000,12,2019,"Fiction"],
   ["Where the Crawdads Sing","Delia Owens",4.8,200000,10,2020,"Fiction"],
@@ -753,6 +705,7 @@ const books = [
   ["The Intruder","Freida McFadden",4.7,90000,15,2025,"Fiction"],
   ["Dead Money","Jakob Kerr",4.5,50000,16,2025,"Fiction"]
 ];
+/* AUTO-GENERATED-END */
 
 let currentFilter = 'all';
 let currentSearch = '';
