@@ -1,8 +1,25 @@
 // books_analysis.cpp
-// Beginner C++ project: reads books.csv and prints analysis using plain C++.
+//
+// Beginner C++ project: reads books.csv, computes summary statistics,
+// and rewrites the JavaScript "books" array inside index.html so the
+// website always reflects whatever is in books.csv.
+//
+// HOW IT WORKS:
+//   1. Reads books.csv
+//   2. Builds the JS array text:  const books = [ ... ];
+//   3. Opens index.html as plain text
+//   4. Replaces everything between the markers:
+//        /* AUTO-GENERATED-START ... */
+//        ...
+//        /* AUTO-GENERATED-END */
+//      with the freshly generated array
+//   5. Saves index.html back to disk
+//   6. Also prints the same console analysis as before, so you still
+//      get readable output when you just want to check the numbers.
 //
 // Compile:   g++ -std=c++17 -o books_analysis books_analysis.cpp
 // Run:       ./books_analysis
+//
 
 #include <iostream>
 #include <fstream>
@@ -11,7 +28,6 @@
 #include <map>
 #include <algorithm>
 #include <iomanip>
-#include <limits>
 
 using namespace std;
 
@@ -27,7 +43,6 @@ struct Book {
 };
 
 // Splits a CSV line into fields, respecting simple double-quoted fields
-// (handles commas inside quotes, e.g. "Smith, John")
 vector<string> splitCSVLine(const string& line) {
     vector<string> fields;
     string field;
@@ -44,17 +59,26 @@ vector<string> splitCSVLine(const string& line) {
             field += c;
         }
     }
-    fields.push_back(field); // last field
+    fields.push_back(field);
     return fields;
 }
 
-// Reads the CSV file into a vector of Book records
+// Escapes characters that would break a JS string literal (e.g. quotes)
+string escapeForJS(const string& s) {
+    string out;
+    for (char c : s) {
+        if (c == '"') out += "\\\"";
+        else out += c;
+    }
+    return out;
+}
+
 vector<Book> loadBooks(const string& filename) {
     vector<Book> books;
     ifstream file(filename);
 
     if (!file.is_open()) {
-        cerr << "ERROR: Could not open file '" << filename << "'." << endl;
+        cerr << "ERROR: Could not open '" << filename << "'." << endl;
         cerr << "Make sure books.csv is in the same folder as the executable." << endl;
         exit(1);
     }
@@ -64,14 +88,10 @@ vector<Book> loadBooks(const string& filename) {
 
     while (getline(file, line)) {
         if (line.empty()) continue;
-
-        if (isHeader) {
-            isHeader = false; // skip the header row (Name,Author,User Rating,...)
-            continue;
-        }
+        if (isHeader) { isHeader = false; continue; }
 
         vector<string> f = splitCSVLine(line);
-        if (f.size() < 7) continue; // skip malformed rows
+        if (f.size() < 7) continue;
 
         Book b;
         b.name    = f[0];
@@ -92,6 +112,77 @@ void printSeparator() {
     cout << string(50, '=') << endl;
 }
 
+// Builds the full "const books = [...]" JS block as a string
+string buildBooksJsBlock(const vector<Book>& books) {
+    ostringstream out;
+    out << "const books = [\n";
+    for (size_t i = 0; i < books.size(); ++i) {
+        const Book& b = books[i];
+        out << "  [\"" << escapeForJS(b.name) << "\",\""
+            << escapeForJS(b.author) << "\","
+            << b.rating << ","
+            << b.reviews << ","
+            << (int)b.price << ","
+            << b.year << ",\""
+            << escapeForJS(b.genre) << "\"]";
+        if (i != books.size() - 1) out << ",";
+        out << "\n";
+    }
+    out << "];";
+    return out.str();
+}
+
+// Reads index.html, replaces the auto-generated block, writes it back
+void updateHtmlFile(const string& htmlPath, const string& newBooksBlock) {
+    ifstream inFile(htmlPath);
+    if (!inFile.is_open()) {
+        cerr << "ERROR: Could not open '" << htmlPath << "' to update it." << endl;
+        cerr << "Make sure index.html is in the same folder as the executable." << endl;
+        exit(1);
+    }
+
+    string startMarker = "/* AUTO-GENERATED-START";
+    string endMarker   = "/* AUTO-GENERATED-END */";
+
+    ostringstream html;
+    string line;
+    bool insideBlock = false;
+    bool foundBlock = false;
+
+    while (getline(inFile, line)) {
+        if (!insideBlock && line.find(startMarker) != string::npos) {
+            insideBlock = true;
+            foundBlock = true;
+            html << line << "\n";          // keep the start-marker comment line
+            html << newBooksBlock << "\n";  // insert the freshly generated array
+            continue;
+        }
+        if (insideBlock) {
+            if (line.find(endMarker) != string::npos) {
+                insideBlock = false;
+                html << line << "\n";       // keep the end-marker comment line
+            }
+            continue; // skip old array lines while inside the block
+        }
+        html << line << "\n";
+    }
+    inFile.close();
+
+    if (!foundBlock) {
+        cerr << "WARNING: Could not find the AUTO-GENERATED markers in "
+             << htmlPath << ". index.html was NOT modified." << endl;
+        cerr << "Make sure index.html still has the "
+             << "'/* AUTO-GENERATED-START ... AUTO-GENERATED-END */' comment block." << endl;
+        exit(1);
+    }
+
+    ofstream outFile(htmlPath, ios::trunc);
+    outFile << html.str();
+    outFile.close();
+
+    cout << "index.html updated successfully with " << "fresh book data." << endl;
+}
+
 int main() {
     vector<Book> books = loadBooks("books.csv");
 
@@ -101,7 +192,7 @@ int main() {
     }
 
     // ---------------------------------------------------------
-    // OVERVIEW
+    // CONSOLE ANALYSIS (same as before, useful for quick checks)
     // ---------------------------------------------------------
     printSeparator();
     cout << "BOOKS DATASET OVERVIEW" << endl;
@@ -126,46 +217,28 @@ int main() {
     cout << "Average Rating : " << avgRating << endl;
     cout << "Average Price  : $" << avgPrice << endl;
 
-    // ---------------------------------------------------------
-    // TOP 5 HIGHEST RATED
-    // ---------------------------------------------------------
     vector<Book> byRating = books;
     sort(byRating.begin(), byRating.end(), [](const Book& a, const Book& b) {
         return a.rating > b.rating;
     });
 
     cout << "\nTOP 5 HIGHEST RATED:" << endl;
-    cout << left << setw(40) << "Name"
-         << right << setw(10) << "Rating"
-         << setw(8) << "Year" << endl;
     for (int i = 0; i < 5 && i < (int)byRating.size(); ++i) {
-        cout << left << setw(40) << byRating[i].name
-             << right << setw(10) << fixed << setprecision(1) << byRating[i].rating
-             << setw(8) << byRating[i].year << endl;
+        cout << "  " << byRating[i].name << " (" << byRating[i].rating << ")" << endl;
     }
 
-    // ---------------------------------------------------------
-    // TOP 5 MOST REVIEWED
-    // ---------------------------------------------------------
     vector<Book> byReviews = books;
     sort(byReviews.begin(), byReviews.end(), [](const Book& a, const Book& b) {
         return a.reviews > b.reviews;
     });
 
     cout << "\nTOP 5 MOST REVIEWED:" << endl;
-    cout << left << setw(40) << "Name"
-         << right << setw(12) << "Reviews" << endl;
     for (int i = 0; i < 5 && i < (int)byReviews.size(); ++i) {
-        cout << left << setw(40) << byReviews[i].name
-             << right << setw(12) << byReviews[i].reviews << endl;
+        cout << "  " << byReviews[i].name << " (" << byReviews[i].reviews << " reviews)" << endl;
     }
 
-    // ---------------------------------------------------------
-    // AVERAGE RATING BY GENRE
-    // ---------------------------------------------------------
     map<string, double> genreRatingSum;
     map<string, int> genreCount;
-
     for (const auto& b : books) {
         genreRatingSum[b.genre] += b.rating;
         genreCount[b.genre] += 1;
@@ -173,40 +246,17 @@ int main() {
 
     cout << "\nAVERAGE RATING BY GENRE:" << endl;
     for (const auto& entry : genreRatingSum) {
-        const string& genre = entry.first;
-        double avg = entry.second / genreCount[genre];
-        cout << left << setw(15) << genre
-             << right << setw(8) << fixed << setprecision(2) << avg << endl;
+        cout << "  " << entry.first << ": "
+             << (entry.second / genreCount[entry.first]) << endl;
     }
 
     // ---------------------------------------------------------
-    // BOOKS BY YEAR (2024 and 2025, like the Python script)
+    // UPDATE index.html WITH FRESH DATA
     // ---------------------------------------------------------
-    auto printBooksForYear = [&](int targetYear) {
-        cout << "\n" << targetYear << " BOOKS:" << endl;
-        cout << left << setw(38) << "Name"
-             << setw(22) << "Author"
-             << right << setw(8) << "Rating" << endl;
+    string booksBlock = buildBooksJsBlock(books);
+    updateHtmlFile("index.html", booksBlock);
 
-        bool found = false;
-        for (const auto& b : books) {
-            if (b.year == targetYear) {
-                found = true;
-                cout << left << setw(38) << b.name
-                     << setw(22) << b.author
-                     << right << setw(8) << fixed << setprecision(1) << b.rating << endl;
-            }
-        }
-        if (!found) {
-            cout << "(no books found for this year)" << endl;
-        }
-    };
-
-    printBooksForYear(2024);
-    printBooksForYear(2025);
-
-    cout << "\nDONE! (Note: chart generation was skipped in the C++ version \n"
-         << "-- see the Python version for visual charts.)" << endl;
+    cout << "\nDONE! Open index.html in your browser to see the updated website." << endl;
 
     return 0;
 }
